@@ -14,6 +14,7 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.util.SparseArray;
 import android.view.MenuItem;
 import android.view.View;
@@ -33,10 +34,12 @@ import com.amap.api.maps.AMapException;
 import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.MapView;
 import com.amap.api.maps.MapsInitializer;
+import com.amap.api.maps.UiSettings;
 import com.amap.api.maps.model.BitmapDescriptorFactory;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
+import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.Poi;
 import com.amap.api.navi.AMapNavi;
 import com.amap.api.navi.AMapNaviListener;
@@ -97,6 +100,7 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
     private MapView mRouteMapView;
     private Marker mStartMarker;
     private Marker mEndMarker;
+    private MyLocationStyle myLocationStyle = new MyLocationStyle();
     //private NaviLatLng startLatlng = new NaviLatLng(40.058741, 116.369051);
     //private NaviLatLng  endLatlng = new NaviLatLng(40.170835, 116.328945);
     private LatLonPoint mStartPoint = null;
@@ -142,6 +146,8 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
 
     private ProgressDialog progDialog = null;// 搜索时进度条
 
+    private boolean isFirstLocation = true; //定位第一次触发
+
     private int wayId = 0;
 
     private  boolean gps = false;
@@ -150,6 +156,8 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
     private  double distanceRange = 0.000015;
     //点击地图时保存点击点的临时变量
     private LatLng tempLatLng;
+    //定位点是否自动移动视角，旋转地图
+    private boolean locationTypeIsMapRotate = false;
 
 
     // 全局保存搜索线路路径
@@ -165,6 +173,8 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
 
         setContentView(R.layout.activity_rest_calculate_my);
         CheckBox congestion = (CheckBox) findViewById(R.id.congestion);
+        //定位跟随 checkbox
+        CheckBox locationnavi = (CheckBox) findViewById(R.id.locationnavi);
         CheckBox cost = (CheckBox) findViewById(R.id.cost);
         CheckBox hightspeed = (CheckBox) findViewById(R.id.hightspeed);
         CheckBox avoidhightspeed = (CheckBox) findViewById(R.id.avoidhightspeed);
@@ -182,6 +192,8 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
         gpsnavi.setOnClickListener(this);
         emulatornavi.setOnClickListener(this);
         congestion.setOnCheckedChangeListener(this);
+        //定位跟随 checkbox
+        locationnavi.setOnCheckedChangeListener(this);
         cost.setOnCheckedChangeListener(this);
         hightspeed.setOnCheckedChangeListener(this);
         avoidhightspeed.setOnCheckedChangeListener(this);
@@ -215,6 +227,21 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
         mStartMarker = mAmap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource( R.drawable.start)));
         mEndMarker = mAmap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource( R.drawable.end)));
         mAmap.addOnMapLongClickListener(mapLongClickListener);
+
+        setMyLocationStyle();
+
+        // 设置定位监听
+        //mAmap.setLocationSource(this);
+        //设置为true表示启动显示定位蓝点，false表示隐藏定位蓝点并不进行定位，默认是false。
+        mAmap.setMyLocationEnabled(true);
+        // 设置地图模式，aMap是地图控制器对象。1.MAP_TYPE_NAVI:导航地图 2.MAP_TYPE_NIGHT:夜景地图 3.MAP_TYPE_NORMAL:白昼地图（即普通地图） 4.MAP_TYPE_SATELLITE:卫星图
+
+        mAmap.setMapType(AMap.MAP_TYPE_NORMAL);//设置默认定位按钮是否显示，非必需设置。
+
+        mAmap.getUiSettings().setMyLocationButtonEnabled(true);//控制比例尺控件是否显示，非必须设置。
+        mAmap.getUiSettings().setScaleControlsEnabled(true);        //显示比例尺
+        mAmap.getUiSettings().setZoomControlsEnabled(true);       //显示缩放按钮
+        mAmap.getUiSettings().setCompassEnabled(true);            //显示指南针
 
         try {
             mAMapNavi = AMapNavi.getInstance(getApplicationContext());
@@ -299,6 +326,9 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
             case R.id.hightspeed:
                 hightspeed = isChecked;
                 break;
+            case R.id.locationnavi:
+                locationTypeIsMapRotate = isChecked;
+                setMyLocationStyle();
             default:
                 break;
         }
@@ -637,6 +667,7 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
     @Override
     public void onLocationChange(AMapNaviLocation arg0) {
 
+        //Log.d("debug","---onLocationChange");
 
     }
 
@@ -1060,22 +1091,29 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
 
                     mStartPoint = new LatLonPoint(location.getLatitude(),location.getLongitude());
 
-                    Toast.makeText(getApplicationContext(), "定位成功："+location.getAddress(), Toast.LENGTH_LONG).show();
+                    //Toast.makeText(getApplicationContext(), "定位成功："+location.getAddress(), Toast.LENGTH_LONG).show();
                     stopLocation();
                     NaviLatLng startLatlng = new NaviLatLng(location.getLatitude(), location.getLongitude());
                     mStartMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));;
                     startList.clear();
                     startList.add(startLatlng);
+                    if (isFirstLocation) {
+                        mAmap.moveCamera(CameraUpdateFactory.changeLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+                        //mListener.onLocationChanged(location);// 显示系统小蓝点
+                        isFirstLocation = false;
+                    }
                 } else {
                     //定位失败
-                    Toast.makeText(getApplicationContext(), "定位失败："+location.getErrorInfo(), Toast.LENGTH_LONG).show();
+                    //Toast.makeText(getApplicationContext(), "定位失败："+location.getErrorInfo(), Toast.LENGTH_LONG).show();
 
                     stopLocation();
+                    Log.e("TAG", "定位失败!!!");
                 }
 
             } else {
-                Toast.makeText(getApplicationContext(), "定位失败", Toast.LENGTH_LONG).show();
+                //Toast.makeText(getApplicationContext(), "定位失败", Toast.LENGTH_LONG).show();
                 stopLocation();
+                Log.e("TAG", "定位失败!!!");
             }
         }
     };
@@ -1163,6 +1201,23 @@ public class MyDriverListActivity extends Activity implements AMapNaviListener, 
                     }
                 })
                 .show();
+    }
+
+    private void setMyLocationStyle(){
+        MyLocationStyle myLocationStyle = new MyLocationStyle();
+        //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。        myLocationStyle.interval(2000);//定位蓝点展现模式，默认是LOCATION_TYPE_LOCATION_ROTATE        myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//设置是否显示定位小蓝点，用于满足只想使用定位，不想使用定位小蓝点的场景，设置false以后图面上不再有定位蓝点的概念，但是会持续回调位置信息。        myLocationStyle.showMyLocation(true);//设置定位蓝点的Style
+        myLocationStyle.interval(2000);
+        //定位蓝点展现模式，默认是LOCATION_TYPE_LOCATION_ROTATE
+        if(locationTypeIsMapRotate){
+            myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_MAP_ROTATE);
+        }else{
+            myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER);
+            //myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_FOLLOW_NO_CENTER);
+        }
+        //设置是否显示定位小蓝点，用于满足只想使用定位，不想使用定位小蓝点的场景，设置false以后图面上不再有定位蓝点的概念，但是会持续回调位置信息。
+        myLocationStyle.showMyLocation(true);
+        //设置定位蓝点的Style
+        mAmap.setMyLocationStyle(myLocationStyle);
     }
 
 }

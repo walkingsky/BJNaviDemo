@@ -123,7 +123,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="40dip"
                 android:checked="false"
-                android:text="开始导航"
+                android:text="导航"
                 android:textSize="14dp"></Button>
 
             <Button
@@ -133,6 +133,13 @@
                 android:text="模拟导航"
                 android:textSize="14dp"></Button>
 
+            <CheckBox
+                android:id="@+id/locationnavi"
+                android:layout_width="wrap_content"
+                android:layout_height="40dip"
+                android:text="跟随定位"
+                android:textSize="14dp"></CheckBox>
+
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -140,7 +147,7 @@
                 android:orientation="horizontal">
 
                 <LinearLayout
-                    android:layout_width="50dip"
+                    android:layout_width="14dp"
                     android:layout_height="match_parent"
                     android:orientation="horizontal" />
 
