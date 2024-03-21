@@ -1,5 +1,7 @@
 根据高德官方demo修改来的一个安卓自定义导航APP源代码。主要用来外地车牌车辆在BeiJ区域的自定义导航。
 
+<img src="https://github.com/walkingsky/BJNaviDemo/raw/master/image/main.jpg" style="zoom:25%;" /> <img src="https://github.com/walkingsky/BJNaviDemo/raw/master/image/navi.jpg" style="zoom:25%;" />
+
 1. ####  准备后台
 
    参考“python后台“目录的python代码，只有一个接口 ，从探头坐标点json数据文件中筛选出对应的数组数据
