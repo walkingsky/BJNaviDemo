@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/set_start_point"
+        android:title="@string/menu_set_start_point" />
+    <item
+        android:id="@+id/set_end_point"
+        android:title="@string/menu_set_end_point" />
+</menu>
