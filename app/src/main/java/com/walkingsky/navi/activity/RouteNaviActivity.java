@@ -1,58 +1,98 @@
 package com.walkingsky.navi.activity;
 
 import android.app.Activity;
-import android.content.Intent;
+import android.content.Context;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Window;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.Toast;
 
+import com.amap.api.maps.AMap;
 import com.amap.api.maps.AMapException;
+import com.amap.api.maps.model.LatLng;
 import com.amap.api.navi.AMapNavi;
+import com.amap.api.navi.AMapNaviIndependentRouteListener;
 import com.amap.api.navi.AMapNaviListener;
 import com.amap.api.navi.AMapNaviView;
 import com.amap.api.navi.AMapNaviViewListener;
 import com.amap.api.navi.AMapNaviViewOptions;
-import com.amap.api.navi.TTSPlayListener;
 import com.amap.api.navi.enums.MapStyle;
 import com.amap.api.navi.enums.NaviType;
 import com.amap.api.navi.model.AMapCalcRouteResult;
+import com.amap.api.navi.model.AMapCarInfo;
 import com.amap.api.navi.model.AMapLaneInfo;
 import com.amap.api.navi.model.AMapModelCross;
 import com.amap.api.navi.model.AMapNaviCameraInfo;
 import com.amap.api.navi.model.AMapNaviCross;
 import com.amap.api.navi.model.AMapNaviLocation;
+import com.amap.api.navi.model.AMapNaviPathGroup;
 import com.amap.api.navi.model.AMapNaviRouteNotifyData;
 import com.amap.api.navi.model.AMapNaviTrafficFacilityInfo;
 import com.amap.api.navi.model.AMapServiceAreaInfo;
 import com.amap.api.navi.model.AimLessModeCongestionInfo;
 import com.amap.api.navi.model.AimLessModeStat;
 import com.amap.api.navi.model.NaviInfo;
+import com.amap.api.navi.model.NaviLatLng;
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.route.DrivePathV2;
+import com.amap.api.services.route.DriveRouteResultV2;
 import com.amap.api.services.route.DriveStepV2;
+import com.amap.api.navi.model.NaviPoi;
+import com.walkingsky.navi.MyApp;
 import com.walkingsky.navi.R;
 
-//import java.io.Serializable;
 import java.util.ArrayList;
-//import java.util.List;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
-public class RouteNaviActivity extends Activity implements AMapNaviListener, AMapNaviViewListener {
+public class RouteNaviActivity extends Activity implements AMapNaviListener, AMapNaviViewListener, OnCheckedChangeListener {
 
-    AMapNaviView mAMapNaviView;
-    AMapNavi mAMapNavi;
+    private AMapNaviView mAMapNaviView;
+    private AMapNavi mAMapNavi;
+    private int wayCnt = 0 ;
+    private boolean gps = false;
+    private final MyApp myApp = MyApp.getInstance();
+    //途经点 列表
+    private final List<NaviLatLng> wayList = new ArrayList<>();
+    private List<NaviPoi> wayPoiList = new ArrayList<>();
+    private int mWayId;
+    private Map<String,LatLng> selectedMonitorsMap = new HashMap<>();
 
-    int wayCnt ;
+    //躲避拥堵
+    private boolean congestion;
+    //避免高速
+    private boolean avoidhightspeed;
+    //避免收费
+    private boolean cost;
+    //高速优先
+    private boolean hightspeed;
+    private boolean useIndependentNavi = false;
 
-    ArrayList<DriveStepV2> mDriveStep = null;
-    boolean gps = false;
+    //起始点坐标
+    private final List<NaviLatLng> startList = new ArrayList<>();
+    //终点坐标
+    private final List<NaviLatLng> endList = new ArrayList<>();
+    //规划线路结果
+    private DriveRouteResultV2 mDriveRouteResultV2;
+
+    private AMap mAmap;
+    private Context mContext;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_basic_navi);
-
-        mAMapNaviView = (AMapNaviView) findViewById(R.id.navi_view);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(Color.parseColor("#303F9F"));
+        }
+        mAMapNaviView =  findViewById(R.id.navi_view);
         AMapNaviViewOptions aMapNaviViewOptions = new AMapNaviViewOptions();
         aMapNaviViewOptions.setMapStyle(MapStyle.AUTO,"");
         //aMapNaviViewOptions.setSecondActionVisible(true);
@@ -66,51 +106,57 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
         aMapNaviViewOptions.setAfterRouteAutoGray(true);
         //设置是否显示下下个路口的转向引导
         aMapNaviViewOptions.setSecondActionVisible(true);
-        //
+
         aMapNaviViewOptions.setLaneInfoShow(true);
         mAMapNaviView.setViewOptions(aMapNaviViewOptions);
         mAMapNaviView.onCreate(savedInstanceState);
         mAMapNaviView.setAMapNaviViewListener(this);
 
+        mAmap = mAMapNaviView.getMap();
+
+
+        CheckBox checkIndependent = findViewById(R.id.checkBoxIndependent);
+        checkIndependent.setOnCheckedChangeListener(this);
+
+        mWayId = 0;
+        mDriveRouteResultV2 = myApp.getmDriveRouteResultV2();
+        //获取传递的变量
+        wayCnt = getIntent().getIntExtra("wayCnt",0);
+        gps = getIntent().getBooleanExtra("gps", false);
+        cost = getIntent().getBooleanExtra("cost",false);
+        congestion = getIntent().getBooleanExtra("congestion",false);
+        avoidhightspeed = getIntent().getBooleanExtra("avoidhightspeed",false);
+        hightspeed = getIntent().getBooleanExtra("hightspeed",false);
+        double startLatitude = getIntent().getDoubleExtra("startLatitude",0);
+        double startLongitude = getIntent().getDoubleExtra("startLongitude",0);
+        double endLatitude = getIntent().getDoubleExtra("endLatitude",0);
+        double endLongitude = getIntent().getDoubleExtra("endLongitude",0);
+        if(startLatitude >0 && startLongitude >0){
+            startList.add(new NaviLatLng(startLatitude,startLongitude));
+        }
+        if(endLatitude >0 && endLongitude >0){
+            endList.add(new NaviLatLng(endLatitude,endLongitude));
+        }
+
         try {
             mAMapNavi = AMapNavi.getInstance(getApplicationContext());
             mAMapNavi.addAMapNaviListener(this);
-            mAMapNavi.setUseInnerVoice(true);
-            mAMapNavi.setEmulatorNaviSpeed(120);
-            wayCnt = getIntent().getIntExtra("wayCnt",0);
-            //监听播报语音
-            mAMapNavi.addTTSPlayListener(new TTSPlayListener() {
-                @Override
-                public void onPlayStart(String s) {
+            mAMapNavi.setEmulatorNaviSpeed(240);
+            mAMapNavi.setUseInnerVoice(true,true);
+            //设置电子眼播报是否开启
+            mAMapNavi.setCameraInfoUpdateEnabled(true);
+            //设置导航播报时压低音乐
+            mAMapNavi.setControlMusicVolumeMode(0);
+            //设置在通话过程中是否进行导航播报
+            mAMapNavi.setListenToVoiceDuringCall(false);
 
-                    if(s.contains("到达途经点")) {
-                        Log.d("debug",s);
-                        mAMapNavi.setTtsPlaying(true);
-                        //mAMapNavi.startSpeak();
-                    }
-                }
+            calculateNavi(false);
 
-                @Override
-                public void onPlayEnd(String s) {
-                    if(s.contains("到达途经点")) {
-                        Log.d("debug",s);
-                        mAMapNavi.setTtsPlaying(false);
-                    }
-                }
-            });
-            //mDriveStep = getIntent().getParcelableArrayListExtra("mDriveStep");
-            gps = getIntent().getBooleanExtra("gps", false);
-            if (gps) {
-                mAMapNavi.startNavi(NaviType.GPS);
-            } else {
-                mAMapNavi.startNavi(NaviType.EMULATOR);
-            }
         } catch (AMapException e) {
             e.printStackTrace();
         }
 
-
-
+        mContext = this.getApplicationContext();
     }
 
     @Override
@@ -135,7 +181,7 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
         mAMapNaviView.onDestroy();
         if (mAMapNavi!=null){
             mAMapNavi.stopNavi();
-            /**
+            /*
              * 当前页面不销毁AmapNavi对象。
              * 因为可能会返回到RestRouteShowActivity页面再次进行路线选择，然后再次进来导航。
              * 如果销毁了就没办法在上一个页面进行选择路线了。
@@ -143,8 +189,9 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
              */
             mAMapNavi.removeAMapNaviListener(this);
         }
-
-//		mAMapNavi.destroy();
+        wayList.clear();
+        wayPoiList.clear();
+        mAMapNavi.destroy();
     }
 
     @Override
@@ -200,32 +247,34 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
 
     @Override
     public void onReCalculateRouteForTrafficJam() {
-
+        mAMapNavi.playTTS(getResources().getString(R.string.navi_step_yaw),true);
+        mAMapNavi.stopNavi();
+        calculateNavi(true);
     }
 
     /**
      * 判断经过最后一个途经点时，重新规划线路
-     * @param wayID
+     * @param wayID 途经点的id
      */
     @Override
     public void onArrivedWayPoint(int wayID) {
 
-        if(wayID +1 < getResources().getInteger(R.integer.navi_max_pass_count))
+        mWayId = wayID;
+        //如果经过的途经点的id和计数不一致（计数少，id多：也即漏过了途经点）
+        if(wayID>wayCnt){
+            mAMapNavi.playTTS(getResources().getString(R.string.navi_step_jump),true);
+            mAMapNavi.stopNavi();
+            wayCnt = 0;
+
+            calculateNavi(true);
             return;
-        else { //if(wayID+1 == getResources().getInteger(R.integer.navi_max_pass_count)) {
-            int code = 0;
-            if(gps)
-                code = 300;
-            else
-                code = 400;
+        }
+        wayCnt++;
+        if(!(wayID +1 < getResources().getInteger(R.integer.navi_max_pass_count))) {
             mAMapNavi.playTTS(getResources().getString(R.string.navi_step_finish),true);
-            //mAMapNavi.stopNavi();
-            Intent intent = new Intent(this, MyDriverListActivity.class);
-            intent.putExtra("wayId", wayID);
-            intent.putExtra("gps", gps);
-            setResult(code, intent);
-            finish();
-            this.onDestroy();
+            mAMapNavi.stopNavi();
+
+            calculateNavi(true);
         }
     }
 
@@ -373,16 +422,6 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
     }
 
     @Override
-    public void onCalculateRouteSuccess(AMapCalcRouteResult aMapCalcRouteResult) {
-
-    }
-
-    @Override
-    public void onCalculateRouteFailure(AMapCalcRouteResult aMapCalcRouteResult) {
-
-    }
-
-    @Override
     public void onNaviRouteNotify(AMapNaviRouteNotifyData aMapNaviRouteNotifyData) {
 
     }
@@ -391,4 +430,184 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
     public void onGpsSignalWeak(boolean b) {
 
     }
+
+    /**
+     * 规划导航路径
+     */
+    public void calculateNavi(boolean reCalculate){
+
+        if (avoidhightspeed && hightspeed) {
+            Toast.makeText(getApplicationContext(), "不走高速与高速优先不能同时为true.", Toast.LENGTH_LONG).show();
+        }
+        if (cost && hightspeed) {
+            Toast.makeText(getApplicationContext(), "高速优先与避免收费不能同时为true.", Toast.LENGTH_LONG).show();
+        }
+        if (!(mDriveRouteResultV2 == null || mDriveRouteResultV2.getPaths().isEmpty())) {
+            DrivePathV2 mDriverPath = mDriveRouteResultV2.getPaths().get(0);
+            if(!reCalculate) {
+                wayList.clear();
+                wayPoiList.clear();
+                    int i = 0;
+                    for (DriveStepV2 mDriveStep : mDriverPath.getSteps()) {
+                        if (i == getResources().getInteger(R.integer.navi_max_pass_count))
+                            break;
+                        List<LatLonPoint> mStepLatLonPoints = mDriveStep.getPolyline();
+                        LatLonPoint latLonPoint = mStepLatLonPoints.get(0);
+                        NaviLatLng mNaviLatLng = new NaviLatLng(latLonPoint.getLatitude(),
+                                mStepLatLonPoints.get(0).getLongitude());
+                        wayList.add(mNaviLatLng);
+
+                        NaviPoi navPoi = new NaviPoi("",
+                                new LatLng(latLonPoint.getLatitude(),mStepLatLonPoints.get(0).getLongitude()),
+                                "");
+                        wayPoiList.add(navPoi);
+                        i++;
+                    }
+
+            }else{
+                //清除已经路过的 途经点
+                if( mWayId< mDriverPath.getSteps().size())
+                {
+                    wayList.clear();
+                    wayPoiList.clear();
+                    int i = 0,j = 0;
+                    for (DriveStepV2 mDriveStep : mDriverPath.getSteps()) {
+                        if(i<mWayId){ //跳过已经走过的路
+                            i++;
+                            continue;
+                        }
+
+                        if(j == getResources().getInteger(R.integer.navi_max_pass_count))
+                            break;
+                        List<LatLonPoint> mStepLatLonPoints = mDriveStep.getPolyline();
+                        LatLonPoint latLonPoint = mStepLatLonPoints.get(0);
+                        NaviLatLng mNaviLatLng = new NaviLatLng(latLonPoint.getLatitude(),
+                                mStepLatLonPoints.get(0).getLongitude());
+                        wayList.add(mNaviLatLng);
+
+
+                        NaviPoi navPoi = new NaviPoi("",
+                                new LatLng(latLonPoint.getLatitude(),mStepLatLonPoints.get(0).getLongitude()),
+                                "");
+                        wayPoiList.add(navPoi);
+                        i++;
+                        j++;
+                    }
+
+                }else{
+                    return; //途经点已经全部到达，不需要继续导航
+                }
+
+            }
+        }
+
+        /*
+         * strategyFlag转换出来的值都对应PathPlanningStrategy常量，用户也可以直接传入PathPlanningStrategy常量进行算路。
+         * 如:mAMapNavi.calculateDriveRoute(mStartList, mEndList, mWayPointList,PathPlanningStrategy.DRIVING_DEFAULT);
+         */
+        int strategyFlag = 0;
+        try {
+            strategyFlag = mAMapNavi.strategyConvert(congestion, avoidhightspeed, cost, hightspeed, false);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (strategyFlag >= 0) {
+            String carNumber = getResources().getString(R.string.car_number);
+            AMapCarInfo carInfo = new AMapCarInfo();
+            //设置车牌
+            carInfo.setCarNumber(carNumber);
+            //设置车牌是否参与限行算路
+            carInfo.setRestriction(true);
+
+            if (mAMapNavi!=null && ! endList.isEmpty() && ! useIndependentNavi){
+                mAMapNavi.setCarInfo(carInfo);
+                //mAMapNavi.calculateDriveRoute(startList, endList, wayList, strategyFlag);
+                mAMapNavi.calculateDriveRoute( endList, wayList, strategyFlag);
+            }else if(mAMapNavi!=null &&  useIndependentNavi){
+                mAMapNavi.setCarInfo(carInfo);
+                NaviPoi startNaviPoi = new NaviPoi("起始点",new LatLng(startList.get(0).getLatitude(),startList.get(0).getLongitude()),"");
+                NaviPoi endNaviPoi = new NaviPoi("终点",new LatLng(endList.get(0).getLatitude(),endList.get(0).getLongitude()),"");
+                mAMapNavi.independentCalculateRoute(startNaviPoi,endNaviPoi,wayPoiList,strategyFlag,1,aMapNaviIndependentRouteListener);
+            }
+        }
+
+    }
+
+    /**
+     * 规划线路返回结果 成功
+     * @param aMapCalcRouteResult AMapCalcRouteResult
+     */
+    @Override
+    public void onCalculateRouteSuccess(AMapCalcRouteResult aMapCalcRouteResult) {
+        final DrivePathV2 drivePathV2 = mDriveRouteResultV2.getPaths().get(0);
+        DrivingRouteOverlay drivingRouteOverlay = new DrivingRouteOverlay(
+                mContext, mAmap, drivePathV2,
+                mDriveRouteResultV2.getStartPos(),
+                mDriveRouteResultV2.getTargetPos(), selectedMonitorsMap,null);
+        drivingRouteOverlay.setNodeIconVisibility(false);//设置节点marker是否显示
+        drivingRouteOverlay.setIsColorfulline(true);//是否用颜色展示交通拥堵情况，默认true
+        drivingRouteOverlay.removeFromMap();
+        drivingRouteOverlay.addToMap();
+
+        drivingRouteOverlay.zoomToSpan();
+        drivingRouteOverlay.cancelableCallback.onFinish(); //通过事件，触发重新绘制标记点
+
+        if (gps) {
+            mAMapNavi.startNavi(NaviType.GPS);
+        } else {
+            mAMapNavi.startNavi(NaviType.EMULATOR);
+        }
+    }
+    /**
+     * 规划线路返回结果 失败
+     * @param result AMapCalcRouteResult
+     */
+    @Override
+    public void onCalculateRouteFailure(AMapCalcRouteResult result) {
+        //calculateSuccess = false;
+        Toast.makeText(getApplicationContext(), "计算路线失败，errorcode＝" + result.getErrorCode(), Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * checkbox 修改
+     * @param buttonView The compound button view whose state has changed.
+     * @param isChecked  The new checked state of buttonView.
+     */
+    @Override
+    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        int id = buttonView.getId();
+        if(id == R.id.checkBoxIndependent){
+            if(isChecked){
+                mAMapNavi.playTTS(getResources().getString(R.string.navi_use_independent),true);
+                useIndependentNavi = true;
+            }else{
+                mAMapNavi.playTTS(getResources().getString(R.string.navi_not_use_independent),true);
+                useIndependentNavi = false;
+            }
+            mAMapNavi.stopNavi();
+            calculateNavi(false);
+        }
+    }
+
+    /**
+     * 独立路径规划结果回调
+     */
+    private AMapNaviIndependentRouteListener aMapNaviIndependentRouteListener = new AMapNaviIndependentRouteListener(){
+        @Override
+        public void onIndependentCalculateSuccess(AMapNaviPathGroup aMapNaviPathGroup) {
+            aMapNaviPathGroup.selectRouteWithIndex(aMapNaviPathGroup.getPathCount()-1);
+            if (gps) {
+                mAMapNavi.startNaviWithPath(NaviType.GPS,aMapNaviPathGroup);
+            } else {
+                mAMapNavi.stopNavi();
+                boolean a = mAMapNavi.startNaviWithPath(NaviType.EMULATOR,aMapNaviPathGroup);
+            }
+        }
+
+        @Override
+        public void onIndependentCalculateFail(AMapCalcRouteResult aMapCalcRouteResult) {
+
+        }
+
+    };
 }

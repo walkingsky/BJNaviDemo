@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_rowSpan="10"
+    android:layout_columnSpan="10"
+    android:orientation="horizontal"
+    android:visibility="visible">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="8"
+        android:background="#03A9F4"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#03A9F4"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:orientation="horizontal">
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/navi_lane_shape_bg_over"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textView2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" 从 "
+                            android:textColor="@color/act_background"
+                            android:textSize="16sp" />
+
+                        <EditText
+                            android:id="@+id/editTextFrom"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/navi_lane_shape_bg_over"
+                            android:ems="10"
+                            android:inputType="text"
+                            android:text="我的位置"
+                            android:textColor="@color/act_background"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:orientation="horizontal">
+
+                    </LinearLayout>
+
+                    <ImageButton
+                        android:id="@+id/swapButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="#00FFFFFF"
+                        android:gravity="center"
+                        android:layoutDirection="locale"
+                        android:src="@android:drawable/stat_notify_sync" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:orientation="horizontal" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/navi_lane_shape_bg_over"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textView3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" 到 "
+                            android:textColor="@color/act_background"
+                            android:textSize="16sp" />
+
+                        <EditText
+                            android:id="@+id/editTextTo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/navi_lane_shape_bg_over"
+                            android:ems="10"
+                            android:inputType="text"
+                            android:text=""
+                            android:textColor="@color/act_background"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:orientation="horizontal" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#1993F4"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="#1993F4"
+                    android:gravity="center"
+                    android:text="   完 成   "
+                    android:textColor="@color/act_background"
+                    android:textSize="16sp"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/congestion"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:layout_margin="0dp"
+                android:text="躲避拥堵"
+                android:textSize="12dp" />
+
+            <CheckBox
+                android:id="@+id/avoidhightspeed"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:layout_margin="0dp"
+                android:text="不走高速"
+                android:textSize="12dp" />
+
+            <CheckBox
+                android:id="@+id/cost"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:text="躲避收费"
+                android:textSize="12dp" />
+
+            <CheckBox
+                android:id="@+id/hightspeed"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:text="高速优先"
+                android:textSize="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingLeft="5dp"
+                android:paddingRight="5dp">
+
+                <TextView
+                    android:id="@+id/textView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="探头范围" />
+
+                <Spinner
+                    android:id="@+id/distance_range"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="5"
+                    android:background="@drawable/navi_lane_shape_bg_over"
+                    android:dropDownWidth="200dip"
+                    android:entries="@array/distance_range_list"
+                    android:spinnerMode="dropdown"
+                    android:textColor="@color/act_background" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+
+                android:layout_marginLeft="20dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="20dp"
+                android:background="@drawable/navi_lane_shape_bg_over"
+                android:text="@string/navibar_title"
+                android:textColor="@color/act_background"
+                android:visibility="visible" />
+
+            <TextView
+                android:id="@+id/textPathDetail"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:textColor="@color/act_background" />
+
+            <CheckBox
+                android:id="@+id/locationnavi"
+                android:layout_width="match_parent"
+                android:layout_height="25dp"
+                android:layout_rowWeight="1"
+
+                android:layout_columnWeight="1"
+                android:layout_margin="5dp"
+                android:text="跟随定位"
+                android:textSize="14dp" />
+
+            <Button
+                android:id="@+id/emulatornavi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+
+                android:layout_columnWeight="1"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:background="@drawable/navi_lane_shape_bg_over"
+                android:text="@string/navi_navi"
+                android:textColor="@color/act_background" />
+
+            <Button
+                android:id="@+id/gpsnavi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="5dp"
+                android:background="@drawable/navi_lane_shape_bg_over"
+                android:text="@string/navi_start_navi"
+                android:textColor="@color/act_background" />
+
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <com.amap.api.maps.MapView
+        android:id="@+id/navi_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="2"
+        android:visibility="visible" />
+
+</LinearLayout>
+

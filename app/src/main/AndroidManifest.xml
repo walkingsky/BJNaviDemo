@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.walkingsky.navi"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="2"
+    android:versionName="2.1">
 
     <!--
         <uses-permission android:name="android.permission.INTERNET" />
@@ -32,10 +32,13 @@
         android:name=".MyApp"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+        <!--
         android:theme="@android:style/Theme.Light">
+        -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
-            android:value="你的高德apikey" />
+            android:value="你的高德的apikey" />
 
         <service android:name="com.amap.api.location.APSService" />
 
@@ -71,7 +74,7 @@
             android:name=".activity.RouteNaviActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/app_name"
-            android:theme="@android:style/Theme.Light.NoTitleBar"
+            android:theme="@style/NaviActivityTheme"
             android:screenOrientation="user"/>
         <activity android:name=".activity.search.SearchPoiActivity" />
     </application>

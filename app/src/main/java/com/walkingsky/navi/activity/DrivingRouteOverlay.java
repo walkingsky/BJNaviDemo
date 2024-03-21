@@ -54,6 +54,11 @@ public class DrivingRouteOverlay extends RouteOverlay{
 
     private Map<String,LatLng> selectedMonitorsMap;
 
+    private double rectangleTopLat = 500;
+    private double rectangleTopLon = 500;
+    private double rectangleBottomLat = 0;
+    private double rectangleBottomLon = 0;
+
 	public void setIsColorfulline(boolean iscolorfulline) {
 		this.isColorfulline = iscolorfulline;
 	}
@@ -130,7 +135,7 @@ public class DrivingRouteOverlay extends RouteOverlay{
                 endMarker.remove();
                 endMarker = null;
             }
-            addStartAndEndMarker();
+            //addStartAndEndMarker();
             addThroughPointMarker();
             if (isColorfulline && tmcs.size()>0 ) {
             	colorWayUpdate(tmcs);
@@ -297,8 +302,13 @@ public class DrivingRouteOverlay extends RouteOverlay{
     @Override
     protected LatLngBounds getLatLngBounds() {
         LatLngBounds.Builder b = LatLngBounds.builder();
-        b.include(new LatLng(startPoint.latitude, startPoint.longitude));
-        b.include(new LatLng(endPoint.latitude, endPoint.longitude));
+        if(rectangleBottomLat == 0){
+            b.include(new LatLng(startPoint.latitude, startPoint.longitude));
+            b.include(new LatLng(endPoint.latitude, endPoint.longitude));
+        }else {
+            b.include(new LatLng(rectangleTopLat, rectangleTopLon));
+            b.include(new LatLng(rectangleBottomLat, rectangleBottomLon));
+        }
         if (this.throughPointList != null && this.throughPointList.size() > 0) {
             for (int i = 0; i < this.throughPointList.size(); i++) {
                 b.include(new LatLng(
@@ -440,7 +450,7 @@ public class DrivingRouteOverlay extends RouteOverlay{
             try {
                 VisibleRegion bounds = mAMap.getProjection().getVisibleRegion();
                 //
-                getAvoidpolygons(AgentKind.inSixRing,bounds.farLeft,bounds.nearRight);
+                getAvoidpolygons(AgentKind.inSixRing);
             } catch (Throwable e) {
                 e.printStackTrace();
             }
@@ -453,7 +463,7 @@ public class DrivingRouteOverlay extends RouteOverlay{
     };
 
 
-    public static final String API_URL = "https://后台接口域名";  //后台接口 域名
+    public static final String API_URL = "https://后台服务器域名";
 
     public enum AgentKind  {all,inSixRing,outSixRing}
 
@@ -485,11 +495,10 @@ public class DrivingRouteOverlay extends RouteOverlay{
 
     /**
      * 获取起点和终点围成的长方形区域内 探头的经纬坐标点
-     * @param  startPoint LatLonPoint 起点
-     * @param  endPoint LatLonPoint 终点
+     * @param  kind AgentKind 探头类型
      * @return List<LatLonPoint>
      */
-    public  void getAvoidpolygons( AgentKind kind , LatLng startPoint, LatLng endPoint) throws IOException
+    public  void getAvoidpolygons( AgentKind kind) throws IOException
     {
         // Create a very simple REST adapter which points the GitHub API.
 
@@ -511,16 +520,34 @@ public class DrivingRouteOverlay extends RouteOverlay{
                 kindStr = "all";
         }
 
+        DrivePathV2 mDrivePath = this.drivePath;
+        List<LatLonPoint> mLatLonPointList = mDrivePath.getPolyline();
+        for (LatLonPoint point : mLatLonPointList) {
+            if( point.getLatitude() < rectangleTopLat)
+                rectangleTopLat = point.getLatitude();
+            if(point.getLongitude() < rectangleTopLon)
+                rectangleTopLon = point.getLongitude();
+            if(point.getLatitude() > rectangleBottomLat)
+                rectangleBottomLat = point.getLatitude();
+            if(point.getLongitude() > rectangleBottomLon)
+                rectangleBottomLon = point.getLongitude();
+        }
+
+        rectangleTopLat = rectangleTopLat - 0.005;
+        rectangleTopLon = rectangleTopLon - 0.005;
+        rectangleBottomLat = rectangleBottomLat + 0.005;
+        rectangleBottomLon = rectangleBottomLon + 0.005;
+
         //
         DrivingRouteOverlay.ApiGetAllMonitorList apiMonitorList = retrofit.create(DrivingRouteOverlay.ApiGetAllMonitorList.class);
 
 
         Call<List<Monitor>> call = apiMonitorList.getMonitors(
                 kindStr,
-                String.valueOf(startPoint.longitude),
-                String.valueOf(startPoint.latitude),
-                String.valueOf(endPoint.longitude),
-                String.valueOf(endPoint.latitude));
+                String.valueOf(rectangleTopLon),
+                String.valueOf(rectangleTopLat),
+                String.valueOf(rectangleBottomLon),
+                String.valueOf(rectangleBottomLat));
 
 
         //异步请求
@@ -547,14 +574,16 @@ public class DrivingRouteOverlay extends RouteOverlay{
                             mMonitorsMarker = mAMap.addMarker(new MarkerOptions().icon(
                                     BitmapDescriptorFactory.fromBitmap(
                                             BitmapFactory.decodeResource(
-                                                    mContext.getResources(), R.drawable.amap_monitor_selected))));
+                                                    mContext.getResources(), R.drawable.amap_monitor_selected)))
+                                    .title("1"));
                             selectedMonitorsMap.remove(mapKey);
                             selectedMonitorsMap.put(mMonitorsMarker.getId(),latLng);
                         }else{
                             mMonitorsMarker = mAMap.addMarker(new MarkerOptions().icon(
                                     BitmapDescriptorFactory.fromBitmap(
                                             BitmapFactory.decodeResource(
-                                                    mContext.getResources(), R.drawable.amap_monitor_point))));
+                                                    mContext.getResources(), R.drawable.amap_monitor_point)))
+                                    .title("0"));
                         }
                         mMonitorsMarker.setPosition(latLng);
                     }

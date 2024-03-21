@@ -2,20 +2,36 @@ package com.walkingsky.navi;
 
 import android.app.Application;
 
-/**
- * Created by shixin on 16/8/23.
- * bug反馈QQ:1438734562
- */
+import com.amap.api.navi.model.NaviLatLng;
+import com.amap.api.services.route.DriveRouteResultV2;
+
+import java.util.ArrayList;
+import java.util.List;
+
+
 public class MyApp extends Application {
+    private static MyApp instance;
+
+    //全局变量
+
+    //规划线路结果
+    private DriveRouteResultV2 mDriveRouteResultV2;
+
+    public static MyApp getInstance(){
+        return instance;
+    }
+
+    public void setmDriveRouteResultV2(DriveRouteResultV2 resultV2){
+        mDriveRouteResultV2 = resultV2;
+    }
+
+    public DriveRouteResultV2 getmDriveRouteResultV2(){
+        return mDriveRouteResultV2;
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        /**
-         * setApiKey是静态方法,内部引用了Context，建议放在Application中
-         * 如果你在meta-data中配置了key，那么以meta-data中的为准，此行代码
-         * 可以忽略，这个方法主要是为那些不想在xml里配置key的用户使用。
-         * **/
-//        AMapNavi.setApiKey(this, "");
+        instance = this;
     }
 }

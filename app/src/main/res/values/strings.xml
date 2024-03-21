@@ -2,6 +2,10 @@
     <integer name="navi_max_pass_count">16</integer>
     <string name="car_number">津FFC5261</string>
     <string name="navi_step_finish">避让线路中途重新规划，请注意线路是否正常！</string>
+    <string name="navi_step_yaw">已偏航，即将重新规划线路</string>
+    <string name="navi_step_jump">错过了一个途经点</string>
+    <string name="navi_use_independent">开始独立路径规划导航</string>
+    <string name="navi_not_use_independent">开始正常模式导航</string>
     <string name="app_name">我的导航</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
@@ -29,6 +33,7 @@
     <string name="navi_strategy">"策    略"</string>
     <string name="navi_route">路径规划</string>
     <string name="navi_navi">模拟导航</string>
+    <string name="navi_start_navi">开始导航</string>
     <string name="start_navi_navi">实时导航</string>
     <string name="navi_strategy_speed">速度最快</string>
     <string name="navi_strategy_cost">避免收费</string>
