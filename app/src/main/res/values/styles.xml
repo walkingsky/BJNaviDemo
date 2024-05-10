@@ -9,7 +9,7 @@
     </style>
 
     <!--  导航activity的主题 -->
-    <style name="NaviActivityTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <style name="NaviActivityTheme" parent="Theme.MaterialComponents.Light.NoActionBar.Bridge">
         <item name="colorPrimaryDark">@color/header_toast</item>
     </style>
 

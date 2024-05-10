@@ -222,8 +222,8 @@ public class AMapUtil {
 			StringBuffer sb = new StringBuffer();
 			for (BusStep busStep : busSetps) {
 				 StringBuffer title = new StringBuffer();
-			   if (busStep.getBusLines().size() > 0) {
-				   for (RouteBusLineItem busline : busStep.getBusLines()) {
+				 if (busStep.getBusLines().size() > 0){
+					 for (RouteBusLineItem busline : busStep.getBusLines()) {
 					   if (busline == null) {
 							continue;
 						}
@@ -232,12 +232,11 @@ public class AMapUtil {
 					   title.append(buslineName);
 					   title.append(" / ");
 				}
-//					RouteBusLineItem busline = busStep.getBusLines().get(0);
-
-					sb.append(title.substring(0, title.length() - 3));
-					sb.append(" > ");
+				//RouteBusLineItem busline = busStep.getBusLines().get(0);
+					 sb.append(title.substring(0, title.length() - 3));
+					 sb.append(" > ");
 				}
-				if (busStep.getRailway() != null) {
+				 if (busStep.getRailway() != null) {
 					RouteRailwayItem railway = busStep.getRailway();
 					sb.append(railway.getTrip()+"("+railway.getDeparturestop().getName()
 							+" - "+railway.getArrivalstop().getName()+")");

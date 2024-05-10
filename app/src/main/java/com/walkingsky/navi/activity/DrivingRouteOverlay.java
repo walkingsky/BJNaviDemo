@@ -42,7 +42,7 @@ public class DrivingRouteOverlay extends RouteOverlay{
 
 	private DrivePathV2 drivePath;
     private List<LatLonPoint> throughPointList;
-    private List<Marker> throughPointMarkerList = new ArrayList<Marker>();
+    private List<Marker> throughPointMarkerList = new ArrayList<>();
     private boolean throughPointMarkerVisible = true;
     private List<TMC> tmcs;
     private PolylineOptions mPolylineOptions;
@@ -109,8 +109,8 @@ public class DrivingRouteOverlay extends RouteOverlay{
             if (mWidth == 0 || drivePath == null) {
                 return;
             }
-            mLatLngsOfPath = new ArrayList<LatLng>();
-            tmcs = new ArrayList<TMC>();
+            mLatLngsOfPath = new ArrayList<>();
+            tmcs = new ArrayList<>();
             List<DriveStepV2> drivePaths = drivePath.getSteps();
             mPolylineOptions.add(startPoint);
             for (int i = 0; i < drivePaths.size(); i++) {
@@ -172,7 +172,7 @@ public class DrivingRouteOverlay extends RouteOverlay{
     /**
      * 根据不同的路段拥堵情况展示不同的颜色
      *
-     * @param tmcSection
+     * @param tmcSection List<TMC>
      */
     private void colorWayUpdate(List<TMC> tmcSection) {
         if (mAMap == null) {
@@ -268,7 +268,8 @@ public class DrivingRouteOverlay extends RouteOverlay{
     private int getcolor(String status) {
 
     	if (status.equals("畅通")) {
-    		return Color.GREEN;
+    		//return Color.GREEN;
+            return Color.parseColor("#FF00FF");  //和导航颜色区分下
 		} else if (status.equals("缓行")) {
 			 return Color.YELLOW;
 		} else if (status.equals("拥堵")) {
@@ -347,15 +348,19 @@ public class DrivingRouteOverlay extends RouteOverlay{
                                                     .getLongitude()))
                                     .visible(throughPointMarkerVisible)
                                     .icon(getThroughPointBitDes())
-                                    .title("\u9014\u7ECF\u70B9")));
+                                    //.title("\u9014\u7ECF\u70B9")));
+                                    .zIndex(110)
+                                    .title("throughMarker_"+String.valueOf(i)))); //title作为id，方便onclick时区分是哪个marker
                 }
             }
         }
     }
     
     private BitmapDescriptor getThroughPointBitDes() {
-    	return BitmapDescriptorFactory.fromResource(R.drawable.amap_through);
-       
+    	//return BitmapDescriptorFactory.fromResource(R.drawable.amap_through);
+        //return BitmapDescriptorFactory.fromResource(R.drawable.action10); //图片小
+        return BitmapDescriptorFactory.fromBitmap(BitmapFactory.decodeResource(
+                mContext.getResources(), R.drawable.action10));
     }
 
     /**

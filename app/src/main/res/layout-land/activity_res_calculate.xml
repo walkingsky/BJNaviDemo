@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_rowSpan="10"
@@ -42,6 +41,8 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginLeft="5dp"
+                        android:layout_marginRight="5dp"
                         android:background="@drawable/navi_lane_shape_bg_over"
                         android:orientation="horizontal">
 
@@ -90,6 +91,8 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginLeft="5dp"
+                        android:layout_marginRight="5dp"
                         android:background="@drawable/navi_lane_shape_bg_over"
                         android:orientation="horizontal">
 
@@ -181,6 +184,11 @@
                 android:text="高速优先"
                 android:textSize="12dp" />
 
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -220,6 +228,7 @@
                 android:layout_marginLeft="20dp"
                 android:layout_marginTop="10dp"
                 android:layout_marginRight="20dp"
+                android:layout_marginBottom="20dp"
                 android:background="@drawable/navi_lane_shape_bg_over"
                 android:text="@string/navibar_title"
                 android:textColor="@color/act_background"
@@ -232,7 +241,10 @@
                 android:layout_rowWeight="1"
                 android:layout_columnWeight="1"
                 android:textColor="@color/act_background" />
-
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp" />
             <CheckBox
                 android:id="@+id/locationnavi"
                 android:layout_width="match_parent"
@@ -243,7 +255,10 @@
                 android:layout_margin="5dp"
                 android:text="跟随定位"
                 android:textSize="14dp" />
-
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp" />
             <Button
                 android:id="@+id/emulatornavi"
                 android:layout_width="match_parent"
@@ -256,7 +271,10 @@
                 android:background="@drawable/navi_lane_shape_bg_over"
                 android:text="@string/navi_navi"
                 android:textColor="@color/act_background" />
-
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="20dp" />
             <Button
                 android:id="@+id/gpsnavi"
                 android:layout_width="match_parent"

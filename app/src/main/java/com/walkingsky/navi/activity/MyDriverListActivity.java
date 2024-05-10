@@ -1,25 +1,20 @@
 package com.walkingsky.navi.activity;
 
 
-import static java.lang.Math.abs;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.os.Bundle;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
-import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnLongClickListener;
 import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.Button;
@@ -44,7 +39,6 @@ import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.Poi;
-import com.amap.api.maps.model.Text;
 import com.amap.api.navi.AMapNavi;
 import com.amap.api.navi.model.NaviLatLng;
 import com.amap.api.navi.view.PoiInputItemWidget;
@@ -77,12 +71,15 @@ import com.amap.api.location.AMapLocationListener;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
-public class MyDriverListActivity extends Activity implements OnClickListener, OnCheckedChangeListener, RouteSearchV2.OnRouteSearchListener, GeocodeSearch.OnGeocodeSearchListener {
+public class MyDriverListActivity extends Activity implements OnClickListener, OnLongClickListener, OnCheckedChangeListener, RouteSearchV2.OnRouteSearchListener, GeocodeSearch.OnGeocodeSearchListener {
     private boolean congestion, cost, hightspeed, avoidhightspeed;
     /**
      * 导航对象(单例)
@@ -163,6 +160,7 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
         Button search =  findViewById(R.id.search);
         Spinner spinner =  findViewById(R.id.distance_range);
         startPoint.setOnClickListener(this);
+        startPoint.setOnLongClickListener(this);
         endPoint.setOnClickListener(this);
         gpsnavi.setOnClickListener(this);
         emulatornavi.setOnClickListener(this);
@@ -223,9 +221,8 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
         mAmap.getUiSettings().setZoomControlsEnabled(true);       //显示缩放按钮
         mAmap.getUiSettings().setCompassEnabled(true);            //显示指南针
         mAmap.setTrafficEnabled(true);
-
-        longClickMarker = mAmap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource( R.drawable.r1))
-                .title("longClickMarker"));
+        //缩放地图到合适级别
+        mAmap.moveCamera(CameraUpdateFactory.zoomTo(12));
 
         try {
             mAMapNavi = AMapNavi.getInstance(getApplicationContext());
@@ -240,6 +237,13 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
         } catch (com.amap.api.services.core.AMapException e) {
             throw new RuntimeException(e);
         }
+
+        /*  调试证书
+        String str = sHA1(this);
+        Log.d("DEBUG","------:"+str);
+        TextView textPathDetail = findViewById(R.id.textPathDetail);
+        textPathDetail.setText(str);
+        */
 
         mContext = this.getApplicationContext();
         //开启定位
@@ -298,7 +302,6 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
         int id = buttonView.getId();
-        CheckBox locationnaviCheckBox = findViewById(R.id.locationnavi);
         CheckBox costCheckBox = findViewById(R.id.cost);
         CheckBox hightspeedCheckBox = findViewById(R.id.hightspeed);
         CheckBox avoidhightspeedCheckBox =  findViewById(R.id.avoidhightspeed);
@@ -412,6 +415,8 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
             //规划避让线路
             case R.id.search:
                 clearRoute();
+                //清空下路径节点，防止干扰
+                mDriveRouteResultV2 = null;
                 if (avoidhightspeed && hightspeed) {
                     Toast.makeText(getApplicationContext(), "不走高速与高速优先不能同时为true.", Toast.LENGTH_LONG).show();
                     break;
@@ -431,10 +436,31 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                 showProgressDialog();
                 final RouteSearchV2.FromAndTo fromAndTo = new RouteSearchV2.FromAndTo(mStartPoint, mEndPoint);
 
+                RouteSearchV2.DrivingStrategy drivingStrategy ;
+                if(congestion && !(cost || hightspeed || avoidhightspeed))
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.AVOID_CONGESTION;
+                else if(congestion && avoidhightspeed && !( cost || hightspeed))
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.AVOID_CONGESTION_AVOID_HIGHWAY;
+                else if(congestion && avoidhightspeed && cost && ! hightspeed)
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.AVOID_CONGESTION_LESS_CHARGE_AVOID_HIGHWAY;
+                else if(congestion && hightspeed )
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.AVOID_CONGESTION_HIGHWAY_PRIORITY;
+                else if(avoidhightspeed && !(congestion || cost || hightspeed))
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.AVOID_HIGHWAY;
+                else if(avoidhightspeed && cost && !(congestion || hightspeed))
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.LESS_CHARGE_AVOID_HIGHWAY;
+                else if(hightspeed && ! congestion)
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.HIGHWAY_PRIORITY;
+                else if(cost  && congestion && !( hightspeed || avoidhightspeed))
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.AVOID_CONGESTION_LESS_CHARGE;
+                else if(cost  && !(congestion || hightspeed || avoidhightspeed))
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.LESS_CHARGE;
+                else
+                    drivingStrategy = RouteSearchV2.DrivingStrategy.DEFAULT;
 
                 if(selectedMonitorsMap.isEmpty()) {
 
-                    RouteSearchV2.DriveRouteQuery query = new RouteSearchV2.DriveRouteQuery(fromAndTo, RouteSearchV2.DrivingStrategy.AVOID_CONGESTION_AVOID_HIGHWAY, null,
+                    RouteSearchV2.DriveRouteQuery query = new RouteSearchV2.DriveRouteQuery(fromAndTo, drivingStrategy, null,
                             null, "");// 第一个参数表示路径规划的起点和终点，第二个参数表示驾车模式，第三个参数表示途经点，第四个参数表示避让区域，第五个参数表示避让道路
                     //query.setShowFields(RouteSearchV2.ShowFields.COST|RouteSearchV2.ShowFields.NAVI|RouteSearchV2.ShowFields.POLINE|RouteSearchV2.ShowFields.TMCS);
                     query.setShowFields(RouteSearchV2.ShowFields.COST | RouteSearchV2.ShowFields.POLINE | RouteSearchV2.ShowFields.TMCS);
@@ -462,7 +488,8 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                     }
                     //不清理
                     //selectedMonitorsMap.clear();
-                    RouteSearchV2.DriveRouteQuery query = new RouteSearchV2.DriveRouteQuery(fromAndTo, RouteSearchV2.DrivingStrategy.AVOID_CONGESTION_AVOID_HIGHWAY, null,
+
+                    RouteSearchV2.DriveRouteQuery query = new RouteSearchV2.DriveRouteQuery(fromAndTo, drivingStrategy, null,
                             avoidpolygons, "");// 第一个参数表示路径规划的起点和终点，第二个参数表示驾车模式，第三个参数表示途经点，第四个参数表示避让区域，第五个参数表示避让道路
                     //query.setShowFields(RouteSearchV2.ShowFields.COST|RouteSearchV2.ShowFields.NAVI|RouteSearchV2.ShowFields.POLINE|RouteSearchV2.ShowFields.TMCS);
                     query.setShowFields(RouteSearchV2.ShowFields.COST | RouteSearchV2.ShowFields.POLINE | RouteSearchV2.ShowFields.TMCS);
@@ -532,6 +559,8 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                 mStartPoint = new LatLonPoint(mLatLng.latitude, mLatLng.longitude);
                 startList.clear();
                 startList.add(startLatlng);
+                //清除已经选择的躲避点 map
+                selectedMonitorsMap.clear();
             }
 
             if (requestCode == 200) {//终点选择完成
@@ -543,7 +572,7 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                 mEndPoint = new LatLonPoint(mLatLng.latitude, mLatLng.longitude);
                 endList.clear();
                 endList.add(endLatlng);
-                //清楚已经选择的躲避点 map
+                //清除已经选择的躲避点 map
                 selectedMonitorsMap.clear();
 
             }
@@ -589,13 +618,10 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
             PopupMenu popupMenu = new PopupMenu(mContext,editText);
             popupMenu.getMenuInflater().inflate(R.menu.popup_menu,popupMenu.getMenu());
             //菜单消失，longClickMarker
-            popupMenu.setOnDismissListener(new PopupMenu.OnDismissListener() {
-                @Override
-                public void onDismiss(PopupMenu menu) {
-                    if(longClickMarker != null) {
-                        //longClickMarker.remove();
-                        longClickMarker.setVisible(false);
-                    }
+            popupMenu.setOnDismissListener(menu -> {
+                if(longClickMarker != null) {
+                    //longClickMarker.remove();
+                    longClickMarker.setVisible(false);
                 }
             });
 
@@ -608,6 +634,8 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                         startList.clear();
                         startList.add(startLatlng);
                         getPointPoiText(mStartPoint,true);
+                        //清除已经选择的躲避点 map
+                        selectedMonitorsMap.clear();
                         break;
                     case R.id.set_end_point:
                         NaviLatLng endLatlng = new NaviLatLng(tempLatLng.latitude, tempLatLng.longitude);
@@ -616,6 +644,8 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                         endList.clear();
                         endList.add(endLatlng);
                         getPointPoiText(mEndPoint,false);
+                        //清除已经选择的躲避点 map
+                        selectedMonitorsMap.clear();
                         break;
                 }
                 longClickMarker.setVisible(false);
@@ -669,9 +699,9 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
                     mDriveRouteResultV2 = driveRouteResultV2;
                     final DrivePathV2 drivePathV2 = mDriveRouteResultV2.getPaths().get(0);
                     Cost cost = drivePathV2.getCost();
-                    String str = "耗时:"+String.valueOf(Math.round(cost.getDuration()/60)) + "分钟 红绿灯数:"
-                            +String.valueOf(cost.getTrafficLights())
-                            +"\n 费用:"+ String.valueOf(cost.getTolls())+"元";
+                    String str = "耗时:"+ Math.round(cost.getDuration() / 60) + "分钟 红绿灯数:"
+                            + cost.getTrafficLights()
+                            +"\n 费用:"+ cost.getTolls() +"元";
                     TextView textPathDetail = findViewById(R.id.textPathDetail);
                     textPathDetail.setText(str);
                     DrivingRouteOverlay drivingRouteOverlay = new DrivingRouteOverlay(
@@ -775,21 +805,25 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
             if (null != location) {
                 //errCode等于0代表定位成功，其他的为定位失败，具体的可以参照官网定位错误码说明
                 if(location.getErrorCode() == 0){
+                    if(isFirstLocation){
+                        mStartPoint = new LatLonPoint(location.getLatitude(),location.getLongitude());
 
-                    mStartPoint = new LatLonPoint(location.getLatitude(),location.getLongitude());
+                        //Toast.makeText(getApplicationContext(), "定位成功："+location.getAddress(), Toast.LENGTH_LONG).show();
+                        stopLocation();
+                        NaviLatLng startLatlng = new NaviLatLng(location.getLatitude(), location.getLongitude());
+                        mStartMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
+                        startList.clear();
+                        startList.add(startLatlng);
+                        getPointPoiText(mStartPoint,true);
 
-                    //Toast.makeText(getApplicationContext(), "定位成功："+location.getAddress(), Toast.LENGTH_LONG).show();
-                    stopLocation();
-                    NaviLatLng startLatlng = new NaviLatLng(location.getLatitude(), location.getLongitude());
-                    mStartMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
-                    startList.clear();
-                    startList.add(startLatlng);
-                    getPointPoiText(mStartPoint,true);
-                    if (isFirstLocation) {
                         mAmap.moveCamera(CameraUpdateFactory.changeLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
                         //mListener.onLocationChanged(location);// 显示系统小蓝点
                         isFirstLocation = false;
                     }
+                    if(locationTypeIsMapRotate){
+                        mAmap.setMyLocationRotateAngle(location.getBearing());
+                    }
+
                 } else {
                     //定位失败
                     //Toast.makeText(getApplicationContext(), "定位失败："+location.getErrorInfo(), Toast.LENGTH_LONG).show();
@@ -869,28 +903,6 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
         MapsInitializer.updatePrivacyShow(MyDriverListActivity.this,true,true);
         MapsInitializer.updatePrivacyAgree(MyDriverListActivity.this,true);
     }
-    private void privacyCompliance() {
-        MapsInitializer.updatePrivacyShow(MyDriverListActivity.this,true,true);
-        SpannableStringBuilder spannable = new SpannableStringBuilder("\"亲，感谢您对XXX一直以来的信任！我们依据最新的监管要求更新了XXX《隐私权政策》，特向您说明如下\n1.为向您提供交易相关基本功能，我们会收集、使用必要的信息；\n2.基于您的明示授权，我们可能会获取您的位置（为您提供附近的商品、店铺及优惠资讯等）等信息，您有权拒绝或取消授权；\n3.我们会采取业界先进的安全措施保护您的信息安全；\n4.未经您同意，我们不会从第三方处获取、共享或向提供您的信息；\n");
-        spannable.setSpan(new ForegroundColorSpan(Color.BLUE), 35, 42, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        new AlertDialog.Builder(this)
-                .setTitle("温馨提示(隐私合规示例)")
-                .setMessage(spannable)
-                .setPositiveButton("同意", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        MapsInitializer.updatePrivacyAgree(MyDriverListActivity.this,true);
-                    }
-                })
-                .setNegativeButton("不同意", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        MapsInitializer.updatePrivacyAgree(MyDriverListActivity.this,false);
-                    }
-                })
-                .show();
-    }
-
     private void setMyLocationStyle(){
         MyLocationStyle myLocationStyle = new MyLocationStyle();
         //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。        myLocationStyle.interval(2000);//定位蓝点展现模式，默认是LOCATION_TYPE_LOCATION_ROTATE        myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//设置是否显示定位小蓝点，用于满足只想使用定位，不想使用定位小蓝点的场景，设置false以后图面上不再有定位蓝点的概念，但是会持续回调位置信息。        myLocationStyle.showMyLocation(true);//设置定位蓝点的Style
@@ -965,10 +977,50 @@ public class MyDriverListActivity extends Activity implements OnClickListener, O
         // 初始化Marker添加到地图
         mStartMarker = mAmap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource( R.drawable.start)));
         mEndMarker = mAmap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource( R.drawable.end)));
+        //长按地图 出现的临时标记点
+        longClickMarker = mAmap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource( R.drawable.r1)));
         if(mStartPoint != null)
             mStartMarker.setPosition(new LatLng(mStartPoint.getLatitude(), mStartPoint.getLongitude()));
         if(mEndPoint != null)
             mEndMarker.setPosition(new LatLng(mEndPoint.getLatitude(), mEndPoint.getLongitude()));
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+        //定位
+        if(v.getId() == findViewById(R.id.editTextFrom).getId()){
+            //重新启动定位，以获取当前位置（），实际应用中位置可能不会变化，所有要重启一下定位
+            stopLocation();
+            isFirstLocation = true;
+            startLocation();
+        }
+        return false;
+    }
+
+    public static String sHA1(Context context){
+        try {
+            PackageInfo info = context.getPackageManager().getPackageInfo(
+                    context.getPackageName(), PackageManager.GET_SIGNATURES);
+            byte[] cert = info.signatures[0].toByteArray();
+            MessageDigest md = MessageDigest.getInstance("SHA1");
+            byte[] publicKey = md.digest(cert);
+            StringBuffer hexString = new StringBuffer();
+            for (int i = 0; i < publicKey.length; i++) {
+                String appendString = Integer.toHexString(0xFF & publicKey[i])
+                        .toUpperCase(Locale.US);
+                if (appendString.length() == 1)
+                    hexString.append("0");
+                hexString.append(appendString);
+                hexString.append(":");
+            }
+            String result = hexString.toString();
+            return result.substring(0, result.length()-1);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
 }

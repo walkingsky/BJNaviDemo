@@ -2,10 +2,12 @@ package com.walkingsky.navi.activity.search;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
@@ -19,12 +21,12 @@ import com.amap.api.maps.model.Poi;
 import com.amap.api.navi.view.PoiInputItemWidget;
 import com.amap.api.services.core.AMapException;
 import com.amap.api.services.core.LatLonPoint;
-import com.amap.api.services.core.PoiItem;
+import com.amap.api.services.core.PoiItemV2;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.InputtipsQuery;
 import com.amap.api.services.help.Tip;
-import com.amap.api.services.poisearch.PoiResult;
-import com.amap.api.services.poisearch.PoiSearch;
+import com.amap.api.services.poisearch.PoiResultV2;
+import com.amap.api.services.poisearch.PoiSearchV2;
 import com.walkingsky.navi.R;
 import com.walkingsky.navi.activity.MyDriverListActivity;
 
@@ -32,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SearchPoiActivity extends Activity implements TextWatcher,
-        Inputtips.InputtipsListener, AdapterView.OnItemClickListener, View.OnTouchListener, View.OnClickListener, PoiSearch.OnPoiSearchListener {
+        Inputtips.InputtipsListener, AdapterView.OnItemClickListener, View.OnTouchListener, View.OnClickListener, PoiSearchV2.OnPoiSearchListener {
     private AutoCompleteTextView mKeywordText;
     private ListView resultList;
     private List<Tip> mCurrentTipList;
@@ -51,11 +53,49 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
         findViews();
         resultList.setOnItemClickListener(this);
         resultList.setOnTouchListener(this);
+
         tvMsg.setVisibility(View.GONE);
         mKeywordText.addTextChangedListener(this);
         mKeywordText.requestFocus();
         Bundle bundle = getIntent().getExtras();
         pointType = bundle.getInt("pointType", -1);
+
+        getFavoriteList(true);
+
+    }
+
+    private void getFavoriteList(boolean reFresh){
+
+        //if(reFresh)
+            mCurrentTipList = new ArrayList<Tip>();
+
+        SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
+        int pointsNumbers = sharedPreferences.getInt("points_numbers",0);
+        //添加本地存储的 地址
+        if(pointsNumbers>0){
+            for(int i = 0 ; i < pointsNumbers; i++){
+                Tip tip = new Tip();
+                String iStr =  String.valueOf(i);
+                tip.setName(sharedPreferences.getString("points_name_" + iStr,""));
+                tip.setID(sharedPreferences.getString("points_poiID_" + iStr,""));
+                tip.setAddress(sharedPreferences.getString("points_address_" + iStr,""));
+                double a =  ((double)sharedPreferences.getLong("points_lat_" + iStr,0)/1000000);
+                tip.setPostion(new LatLonPoint(
+                         ((double)sharedPreferences.getLong("points_lat_" + iStr,0)/1000000),
+                         ((double)sharedPreferences.getLong("points_lon_" + iStr,0)/1000000)
+                ));
+                mCurrentTipList.add(tip);
+            }
+            //if(reFresh){
+                resultList.setVisibility(View.VISIBLE);
+                SearchResultAdapter.ScreenSize screenSize = new SearchResultAdapter.ScreenSize();
+                screenSize.widthPx = getScreenWidth();
+                screenSize.pdToPxRatio = pdToPxRatio();
+                resultAdapter = new SearchResultAdapter(getApplicationContext(), mCurrentTipList,screenSize);
+                resultList.setAdapter(resultAdapter);
+                resultAdapter.notifyDataSetChanged();
+            //}
+        }
     }
 
 
@@ -114,12 +154,12 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
             Tip tip = (Tip) parent.getItemAtPosition(position);
             selectedPoi = new Poi(tip.getName(), new LatLng(tip.getPoint().getLatitude(), tip.getPoint().getLongitude()), tip.getPoiID());
             if (!TextUtils.isEmpty(selectedPoi.getPoiId())) {
-                PoiSearch.Query query = new PoiSearch.Query(selectedPoi.getName(), "", city);
+                PoiSearchV2.Query query = new PoiSearchV2.Query(selectedPoi.getName(), "", city);
                 query.setDistanceSort(false);
-                query.requireSubPois(true);
-                PoiSearch poiSearch = null;
+                //query.requireSubPois(true);
+                PoiSearchV2 poiSearch = null;
                 try {
-                    poiSearch = new PoiSearch(getApplicationContext(), query);
+                    poiSearch = new PoiSearchV2(getApplicationContext(), query);
                     poiSearch.setOnPoiSearchListener(this);
                     poiSearch.searchPOIIdAsyn(selectedPoi.getPoiId());
                 } catch (AMapException e) {
@@ -136,6 +176,9 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
         try {
             if (rCode == 1000) {
                 mCurrentTipList = new ArrayList<Tip>();
+
+                getFavoriteList(false);
+
                 for (Tip tip : tipList) {
                     if (null == tip.getPoint()) {
                         continue;
@@ -149,7 +192,10 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
                     resultList.setVisibility(View.GONE);
                 } else {
                     resultList.setVisibility(View.VISIBLE);
-                    resultAdapter = new SearchResultAdapter(getApplicationContext(), mCurrentTipList);
+                    SearchResultAdapter.ScreenSize screenSize = new SearchResultAdapter.ScreenSize();
+                    screenSize.widthPx = getScreenWidth();
+                    screenSize.pdToPxRatio = pdToPxRatio();
+                    resultAdapter = new SearchResultAdapter(getApplicationContext(), mCurrentTipList,screenSize);
                     resultList.setAdapter(resultAdapter);
                     resultAdapter.notifyDataSetChanged();
                 }
@@ -174,13 +220,14 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
         return false;
     }
 
+
     @Override
-    public void onPoiSearched(PoiResult poiResult, int i) {
+    public void onPoiSearched(PoiResultV2 poiResultV2, int i) {
 
     }
 
     @Override
-    public void onPoiItemSearched(PoiItem poiItem, int errorCode) {
+    public void onPoiItemSearched(PoiItemV2 poiItem, int errorCode) {
         try {
             LatLng latLng = null;
             int code = 0;
@@ -188,6 +235,7 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
                 if (poiItem == null) {
                     return;
                 }
+                /*
                 LatLonPoint exitP = poiItem.getExit();
                 LatLonPoint enterP = poiItem.getEnter();
                 if (pointType == PoiInputItemWidget.TYPE_START) {
@@ -206,6 +254,14 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
                         latLng = new LatLng(enterP.getLatitude(), enterP.getLongitude());
                     }
                 }
+                 */
+                LatLonPoint enterP = poiItem.getLatLonPoint();
+                if (pointType == PoiInputItemWidget.TYPE_START)
+                    code = 100;
+                if (pointType == PoiInputItemWidget.TYPE_DEST)
+                    code = 200;
+                if(enterP != null)
+                    latLng = new LatLng(enterP.getLatitude(),enterP.getLongitude());
             }
             Poi poi;
             if (latLng != null) {
@@ -222,4 +278,18 @@ public class SearchPoiActivity extends Activity implements TextWatcher,
             e.printStackTrace();
         }
     }
+    /**
+     * 获取屏幕的宽度
+     * @return int 宽度值px
+     */
+    private int getScreenWidth(){
+        DisplayMetrics metrics=new DisplayMetrics();
+        this.getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        return metrics.widthPixels;
+    }
+
+    private int pdToPxRatio(){
+        return (int)(this.getResources().getDisplayMetrics().density+0.5f);
+    }
+
 }

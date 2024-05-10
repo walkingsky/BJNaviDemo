@@ -4,8 +4,9 @@
     android:layout_height="fill_parent"
     android:orientation="horizontal"
     android:paddingLeft="10dp"
-    android:paddingTop="10dp"
+    android:paddingTop="5dp"
     android:background="@drawable/black_click_selector"
+    android:descendantFocusability="blocksDescendants"
     >
 
     <ImageView
@@ -20,30 +21,56 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
-        <TextView
-            android:id="@+id/name"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#3C3C3C"
-            android:textSize="15sp"
-            android:text="poiname"
-            android:textStyle="bold"></TextView>
 
-        <TextView
-            android:id="@+id/adress"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:textColor="#afaeae"
-            android:text="address"
-            android:textSize="12sp"></TextView>
+        <LinearLayout
+            android:id="@+id/linearLayoutFather"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/linearLayoutChild"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="poiname"
+                    android:textColor="#3C3C3C"
+                    android:textSize="15sp"
+                    android:textStyle="bold"></TextView>
+
+                <TextView
+                    android:id="@+id/adress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:text="address"
+                    android:textColor="#afaeae"
+                    android:textSize="12sp"></TextView>
+
+
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/favoriteButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:focusable="false"
+                android:src="@android:drawable/btn_star" />
+
+        </LinearLayout>
 
         <View
             android:id="@+id/line"
             android:layout_width="fill_parent"
             android:background="#ffe2e2e2"
             android:layout_height="1px"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="5dp"
             android:baselineAlignBottom="true"/>
     </LinearLayout>
+
 </LinearLayout>

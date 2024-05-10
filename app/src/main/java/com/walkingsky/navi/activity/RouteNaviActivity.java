@@ -5,10 +5,13 @@ import android.content.Context;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+
+
+import com.amap.api.maps.model.Marker;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import android.view.View;
 import android.view.Window;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.Toast;
 
 import com.amap.api.maps.AMap;
@@ -51,17 +54,19 @@ import java.util.List;
 import java.util.Map;
 
 
-public class RouteNaviActivity extends Activity implements AMapNaviListener, AMapNaviViewListener, OnCheckedChangeListener {
+public class RouteNaviActivity extends Activity implements AMapNaviListener, AMapNaviViewListener, View.OnClickListener {
 
     private AMapNaviView mAMapNaviView;
     private AMapNavi mAMapNavi;
     private int wayCnt = 0 ;
+    private int currentStepId = 0; //记录当前位置所在线路的step id
+    private int mStepId = 0; //记录已经到达过的原始线路（从避让规划线路传递过来的线路）的最大step id
     private boolean gps = false;
     private final MyApp myApp = MyApp.getInstance();
     //途经点 列表
     private final List<NaviLatLng> wayList = new ArrayList<>();
+    private final List<LatLonPoint> throutPointList = new ArrayList<>();
     private List<NaviPoi> wayPoiList = new ArrayList<>();
-    private int mWayId;
     private Map<String,LatLng> selectedMonitorsMap = new HashMap<>();
 
     //躲避拥堵
@@ -106,7 +111,8 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
         aMapNaviViewOptions.setAfterRouteAutoGray(true);
         //设置是否显示下下个路口的转向引导
         aMapNaviViewOptions.setSecondActionVisible(true);
-
+        //aMapNaviViewOptions.setReCalculateRouteForYaw(false);//设置偏航时是否重新计算路径
+        //aMapNaviViewOptions.setReCalculateRouteForTrafficJam(false);//前方拥堵时是否重新计算路径
         aMapNaviViewOptions.setLaneInfoShow(true);
         mAMapNaviView.setViewOptions(aMapNaviViewOptions);
         mAMapNaviView.onCreate(savedInstanceState);
@@ -114,11 +120,10 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
 
         mAmap = mAMapNaviView.getMap();
 
+        FloatingActionButton floatingActionButton = findViewById(R.id.floatingActionButton);
+        floatingActionButton.setImageResource(R.drawable.navigation_1_icon);
+        floatingActionButton.setOnClickListener(this);
 
-        CheckBox checkIndependent = findViewById(R.id.checkBoxIndependent);
-        checkIndependent.setOnCheckedChangeListener(this);
-
-        mWayId = 0;
         mDriveRouteResultV2 = myApp.getmDriveRouteResultV2();
         //获取传递的变量
         wayCnt = getIntent().getIntExtra("wayCnt",0);
@@ -213,9 +218,16 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
 
     }
 
+    /**
+     * 当位置信息有更新时的回调函数。
+     * @param location 当前位置的定位信息。
+     */
     @Override
     public void onLocationChange(AMapNaviLocation location) {
 
+        if(location.isMatchNaviPath()){
+            currentStepId = location.getCurStepIndex();
+        }
     }
 
     @Override
@@ -242,14 +254,17 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
 
     @Override
     public void onReCalculateRouteForYaw() {
-
+        //mAMapNavi.playTTS(getResources().getString(R.string.navi_step_yaw),true);
+        //mAMapNavi.stopNavi();
+        //calculateNavi(true);
+        //mAMapNavi.playTTS(getResources().getString(R.string.navi_yaw_auto),true);
+        //mStepId = currentStepId;
+        //Log.e("DEBUG", "onReCalculateRouteForYaw: currentStepId:"+String.valueOf(currentStepId));
     }
 
     @Override
     public void onReCalculateRouteForTrafficJam() {
-        mAMapNavi.playTTS(getResources().getString(R.string.navi_step_yaw),true);
-        mAMapNavi.stopNavi();
-        calculateNavi(true);
+
     }
 
     /**
@@ -258,22 +273,21 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
      */
     @Override
     public void onArrivedWayPoint(int wayID) {
-
-        mWayId = wayID;
+        /*
         //如果经过的途经点的id和计数不一致（计数少，id多：也即漏过了途经点）
-        if(wayID>wayCnt){
-            mAMapNavi.playTTS(getResources().getString(R.string.navi_step_jump),true);
+        if(wayID!=wayCnt) {
+            mAMapNavi.playTTS(getResources().getString(R.string.navi_step_jump), true);
             mAMapNavi.stopNavi();
             wayCnt = 0;
-
+            mStepId = wayID;
             calculateNavi(true);
             return;
         }
+        */
         wayCnt++;
         if(!(wayID +1 < getResources().getInteger(R.integer.navi_max_pass_count))) {
             mAMapNavi.playTTS(getResources().getString(R.string.navi_step_finish),true);
             mAMapNavi.stopNavi();
-
             calculateNavi(true);
         }
     }
@@ -447,53 +461,92 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
             if(!reCalculate) {
                 wayList.clear();
                 wayPoiList.clear();
+                throutPointList.clear();
                     int i = 0;
                     for (DriveStepV2 mDriveStep : mDriverPath.getSteps()) {
                         if (i == getResources().getInteger(R.integer.navi_max_pass_count))
                             break;
                         List<LatLonPoint> mStepLatLonPoints = mDriveStep.getPolyline();
-                        LatLonPoint latLonPoint = mStepLatLonPoints.get(0);
-                        NaviLatLng mNaviLatLng = new NaviLatLng(latLonPoint.getLatitude(),
-                                mStepLatLonPoints.get(0).getLongitude());
-                        wayList.add(mNaviLatLng);
-
-                        NaviPoi navPoi = new NaviPoi("",
-                                new LatLng(latLonPoint.getLatitude(),mStepLatLonPoints.get(0).getLongitude()),
-                                "");
-                        wayPoiList.add(navPoi);
+                        int mSize = mStepLatLonPoints.size();
+                        int a = (mSize-1)/2;
+                        int b = (int)(mSize-1)%2;
+                        if(b == 0){
+                            LatLonPoint latLonPoint = mStepLatLonPoints.get(a);
+                            NaviLatLng mNaviLatLng = new NaviLatLng(latLonPoint.getLatitude(),
+                                    latLonPoint.getLongitude());
+                            wayList.add(mNaviLatLng);
+                            throutPointList.add(latLonPoint);
+                            NaviPoi navPoi = new NaviPoi("",
+                                    new LatLng(latLonPoint.getLatitude(),latLonPoint.getLongitude()),
+                                    "");
+                            wayPoiList.add(navPoi);
+                        }else{
+                            LatLonPoint latLonPointA = mStepLatLonPoints.get(a);
+                            LatLonPoint latLonPointB = mStepLatLonPoints.get(a+b);
+                            double mPointLat = latLonPointA.getLatitude() +
+                                    (latLonPointB.getLatitude() - latLonPointA.getLatitude())/2;
+                            double mPointLong = latLonPointA.getLongitude() +
+                                    (latLonPointB.getLongitude() - latLonPointA.getLongitude())/2;
+                            NaviLatLng mNaviLatLng = new NaviLatLng(mPointLat,mPointLong);
+                            wayList.add(mNaviLatLng);
+                            throutPointList.add( new LatLonPoint(mPointLat,mPointLong));
+                            NaviPoi navPoi = new NaviPoi("",
+                                    new LatLng(mPointLat,mPointLong),
+                                    "");
+                            wayPoiList.add(navPoi);
+                        }
                         i++;
                     }
+                currentStepId = 0;
 
             }else{
                 //清除已经路过的 途经点
-                if( mWayId< mDriverPath.getSteps().size())
+                if( currentStepId< mDriverPath.getSteps().size()  )
                 {
                     wayList.clear();
                     wayPoiList.clear();
                     int i = 0,j = 0;
                     for (DriveStepV2 mDriveStep : mDriverPath.getSteps()) {
-                        if(i<mWayId){ //跳过已经走过的路
+                        if( i <= mStepId ){ //跳过已经走过的路
                             i++;
                             continue;
                         }
-
                         if(j == getResources().getInteger(R.integer.navi_max_pass_count))
                             break;
                         List<LatLonPoint> mStepLatLonPoints = mDriveStep.getPolyline();
-                        LatLonPoint latLonPoint = mStepLatLonPoints.get(0);
-                        NaviLatLng mNaviLatLng = new NaviLatLng(latLonPoint.getLatitude(),
-                                mStepLatLonPoints.get(0).getLongitude());
-                        wayList.add(mNaviLatLng);
-
-
-                        NaviPoi navPoi = new NaviPoi("",
-                                new LatLng(latLonPoint.getLatitude(),mStepLatLonPoints.get(0).getLongitude()),
-                                "");
-                        wayPoiList.add(navPoi);
+                        int mSize = mStepLatLonPoints.size();
+                        int a = (mSize-1)/2;
+                        int b = (int)(mSize-1)%2;
+                        if(b == 0){
+                            LatLonPoint latLonPoint = mStepLatLonPoints.get(a);
+                            NaviLatLng mNaviLatLng = new NaviLatLng(latLonPoint.getLatitude(),
+                                    latLonPoint.getLongitude());
+                            wayList.add(mNaviLatLng);
+                            throutPointList.add(latLonPoint);
+                            NaviPoi navPoi = new NaviPoi("",
+                                    new LatLng(latLonPoint.getLatitude(),latLonPoint.getLongitude()),
+                                    "");
+                            wayPoiList.add(navPoi);
+                        }else {
+                            LatLonPoint latLonPointA = mStepLatLonPoints.get(a);
+                            LatLonPoint latLonPointB = mStepLatLonPoints.get(a + b);
+                            double mPointLat = latLonPointA.getLatitude() +
+                                    (latLonPointB.getLatitude() - latLonPointA.getLatitude()) / 2;
+                            double mPointLong = latLonPointA.getLongitude() +
+                                    (latLonPointB.getLongitude() - latLonPointA.getLongitude()) / 2;
+                            NaviLatLng mNaviLatLng = new NaviLatLng(mPointLat, mPointLong);
+                            wayList.add(mNaviLatLng);
+                            throutPointList.add( new LatLonPoint(mPointLat,mPointLong));
+                            NaviPoi navPoi = new NaviPoi("",
+                                    new LatLng(mPointLat, mPointLong),
+                                    "");
+                            wayPoiList.add(navPoi);
+                        }
                         i++;
                         j++;
                     }
-
+                    currentStepId = 0;
+                    wayCnt = 0;
                 }else{
                     return; //途经点已经全部到达，不需要继续导航
                 }
@@ -543,7 +596,7 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
         DrivingRouteOverlay drivingRouteOverlay = new DrivingRouteOverlay(
                 mContext, mAmap, drivePathV2,
                 mDriveRouteResultV2.getStartPos(),
-                mDriveRouteResultV2.getTargetPos(), selectedMonitorsMap,null);
+                mDriveRouteResultV2.getTargetPos(), selectedMonitorsMap,throutPointList);
         drivingRouteOverlay.setNodeIconVisibility(false);//设置节点marker是否显示
         drivingRouteOverlay.setIsColorfulline(true);//是否用颜色展示交通拥堵情况，默认true
         drivingRouteOverlay.removeFromMap();
@@ -551,6 +604,8 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
 
         drivingRouteOverlay.zoomToSpan();
         drivingRouteOverlay.cancelableCallback.onFinish(); //通过事件，触发重新绘制标记点
+
+        mAmap.setOnMarkerClickListener(throughPointMarkerClick);
 
         if (gps) {
             mAMapNavi.startNavi(NaviType.GPS);
@@ -566,27 +621,6 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
     public void onCalculateRouteFailure(AMapCalcRouteResult result) {
         //calculateSuccess = false;
         Toast.makeText(getApplicationContext(), "计算路线失败，errorcode＝" + result.getErrorCode(), Toast.LENGTH_SHORT).show();
-    }
-
-    /**
-     * checkbox 修改
-     * @param buttonView The compound button view whose state has changed.
-     * @param isChecked  The new checked state of buttonView.
-     */
-    @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        int id = buttonView.getId();
-        if(id == R.id.checkBoxIndependent){
-            if(isChecked){
-                mAMapNavi.playTTS(getResources().getString(R.string.navi_use_independent),true);
-                useIndependentNavi = true;
-            }else{
-                mAMapNavi.playTTS(getResources().getString(R.string.navi_not_use_independent),true);
-                useIndependentNavi = false;
-            }
-            mAMapNavi.stopNavi();
-            calculateNavi(false);
-        }
     }
 
     /**
@@ -609,5 +643,48 @@ public class RouteNaviActivity extends Activity implements AMapNaviListener, AMa
 
         }
 
+    };
+
+    /**
+     * 点击按钮，切换独立导航
+     * @param v The view that was clicked.
+     */
+    @Override
+    public void onClick(View v) {
+        int id = v.getId();
+        if(id == R.id.floatingActionButton){
+            FloatingActionButton floatingActionButton = findViewById(id);
+            if(useIndependentNavi){
+                floatingActionButton.setImageResource(R.drawable.navigation_1_icon);
+                mAMapNavi.playTTS(getResources().getString(R.string.navi_not_use_independent),true);
+                useIndependentNavi = false;
+            }else{
+                mAMapNavi.playTTS(getResources().getString(R.string.navi_use_independent) ,true);
+                floatingActionButton.setImageResource(R.drawable.navigation_2_icon);
+                useIndependentNavi = true;
+            }
+            mAMapNavi.stopNavi();
+            calculateNavi(false);
+        }
+    }
+
+    /**
+     * 地图添加 途经点 marker 的点击事件
+     */
+    AMap.OnMarkerClickListener throughPointMarkerClick = new AMap.OnMarkerClickListener(){
+        @Override
+        public boolean onMarkerClick(Marker marker) {
+            String title = marker.getTitle();
+            if(title.indexOf("throughMarker_") >= 0){
+                int id = Integer.parseInt(title.substring(14));
+                if(id >=0 && id <= mDriveRouteResultV2.getPaths().get(0).getSteps().size()){
+                    mStepId = id;
+                    mAMapNavi.playTTS(getResources().getString(R.string.navi_step_jump), true);
+                    mAMapNavi.stopNavi();
+                    calculateNavi(true);
+                }
+            }
+            return false;
+        }
     };
 }

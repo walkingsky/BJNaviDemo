@@ -3,8 +3,10 @@
     <string name="car_number">津FFC5261</string>
     <string name="navi_step_finish">避让线路中途重新规划，请注意线路是否正常！</string>
     <string name="navi_step_yaw">已偏航，即将重新规划线路</string>
-    <string name="navi_step_jump">错过了一个途经点</string>
+    <string name="navi_yaw_auto">重新规划</string>
+    <string name="navi_step_jump">错过途经点</string>
     <string name="navi_use_independent">开始独立路径规划导航</string>
+    <string name="navi_switch_independent">切换独立导航</string>
     <string name="navi_not_use_independent">开始正常模式导航</string>
     <string name="app_name">我的导航</string>
     <string name="hello_world">Hello world!</string>
